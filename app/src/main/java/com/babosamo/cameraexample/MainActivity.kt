@@ -1,10 +1,11 @@
 package com.babosamo.cameraexample
 
+import android.app.Activity
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
-import android.support.v4.app.ActivityCompat
 import android.support.v4.content.FileProvider
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
@@ -12,6 +13,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.content_main.*
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -30,22 +32,47 @@ class MainActivity : AppCompatActivity() {
 
         fab.setOnClickListener { view ->
             Toast.makeText(this, "take a picture", Toast.LENGTH_SHORT).show()
+            val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
+            if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+                startActivityForResult(takePictureIntent, TAKE_CAMERA_RESULT_CODE)
+            }
+        }
+
+
+        fab2.setOnClickListener { view ->
+            Toast.makeText(this, "take a picture local file", Toast.LENGTH_SHORT).show()
             val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
             var photoFile: File? = null
             try {
                 photoFile = createImageFile()
-                if (photoFile != null) {
 
-                    val photoURI = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".fileprovider", photoFile)
-                    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
-                    startActivityForResult(takePictureIntent, TAKE_CAMERA_RESULT_CODE)
-                }
+                val photoURI = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".fileprovider", photoFile)
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
+                startActivityForResult(takePictureIntent, TAKE_CAMERA_RESULT_CODE)
+
             } catch (ex: IOException) {
                 Log.e(TAG, "error: $ex")
             }
+
         }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+
+        if (requestCode == TAKE_CAMERA_RESULT_CODE && resultCode == Activity.RESULT_OK) {
+            var extra = data?.extras
+
+            extra?.let {
+                if (it.containsKey("data")) { // buffer 로만 넘겨줌
+                    val bitmap: Bitmap = it.get("data") as Bitmap
+                    photoImageView.setImageBitmap(bitmap)
+                }
+            }
+
+        }
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
