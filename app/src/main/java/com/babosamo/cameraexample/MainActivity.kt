@@ -3,8 +3,11 @@ package com.babosamo.cameraexample
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
+import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
 import android.provider.MediaStore
 import android.support.v4.content.FileProvider
 import android.support.v7.app.AppCompatActivity
@@ -18,12 +21,18 @@ import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
+import android.graphics.BitmapFactory
+import android.opengl.ETC1.getHeight
+import android.opengl.ETC1.getWidth
+
+
 
 class MainActivity : AppCompatActivity() {
 
     private val TAG = MainActivity::class.java.simpleName
 
-    val TAKE_CAMERA_RESULT_CODE = 100
+    val TAKE_PHOTO_RESULT_CODE = 100
+    val TAKE_PHOTO_FULL_SIZE_RESULT_CODE = 101
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,17 +40,17 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
 
         fab.setOnClickListener { view ->
-            Toast.makeText(this, "take a picture", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "take a thumbnail potho", Toast.LENGTH_SHORT).show()
             val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
             if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-                startActivityForResult(takePictureIntent, TAKE_CAMERA_RESULT_CODE)
+                startActivityForResult(takePictureIntent, TAKE_PHOTO_RESULT_CODE)
             }
         }
 
 
         fab2.setOnClickListener { view ->
-            Toast.makeText(this, "take a picture local file", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "take a full size photo", Toast.LENGTH_SHORT).show()
             val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
             var photoFile: File? = null
@@ -50,7 +59,7 @@ class MainActivity : AppCompatActivity() {
 
                 val photoURI = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".fileprovider", photoFile)
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
-                startActivityForResult(takePictureIntent, TAKE_CAMERA_RESULT_CODE)
+                startActivityForResult(takePictureIntent, TAKE_PHOTO_FULL_SIZE_RESULT_CODE)
 
             } catch (ex: IOException) {
                 Log.e(TAG, "error: $ex")
@@ -61,7 +70,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
 
-        if (requestCode == TAKE_CAMERA_RESULT_CODE && resultCode == Activity.RESULT_OK) {
+        if (requestCode == TAKE_PHOTO_RESULT_CODE && resultCode == Activity.RESULT_OK) {
             var extra = data?.extras
 
             extra?.let {
@@ -71,8 +80,49 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+        }else if(requestCode == TAKE_PHOTO_FULL_SIZE_RESULT_CODE && resultCode == Activity.RESULT_OK){
+            if(mCurrentPhotoPath != null){
+
+                setPic()
+//                val imageUri = Uri.parse(mCurrentPhotoPath)
+//
+//                MediaScannerConnection.scanFile(this, arrayOf(imageUri.path), null) {
+//                    path, uri ->
+//                }
+//
+//                val handler = Handler()
+//                val runnable = Runnable {
+//                    photoImageView.setImageBitmap(bitmap)
+//                }
+//                handler.postDelayed(runnable, 500)
+            }
         }
 
+    }
+
+
+    private fun setPic() {
+        // Get the dimensions of the View
+        val targetW = photoImageView.getWidth()
+        val targetH = photoImageView.getHeight()
+
+        // Get the dimensions of the bitmap
+        val bmOptions = BitmapFactory.Options()
+        bmOptions.inJustDecodeBounds = true
+        BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions)
+        val photoW = bmOptions.outWidth
+        val photoH = bmOptions.outHeight
+
+        // Determine how much to scale down the image
+        val scaleFactor = Math.min(photoW / targetW, photoH / targetH)
+
+        // Decode the image file into a Bitmap sized to fill the View
+        bmOptions.inJustDecodeBounds = false
+        bmOptions.inSampleSize = scaleFactor
+        bmOptions.inPurgeable = true
+
+        val bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions)
+        photoImageView.setImageBitmap(bitmap)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -91,21 +141,38 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    var mCurrentPhotoPath: String? = null
 
     @Throws(IOException::class)
     private fun createImageFile(): File {
         // Create an image file name
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
-        val imageFileName = "brunch_" + timeStamp + "_"
-        val path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+        val imageFileName = "JPEG_" + timeStamp + "_"
+        val storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         val image = File.createTempFile(
                 imageFileName, /* prefix */
                 ".jpg", /* suffix */
-                path            /* directory */
+                storageDir      /* directory */
         )
 
         // Save a file: path for use with ACTION_VIEW intents
-        val mCurrentPhotoPath = "file:" + image.absolutePath
+        mCurrentPhotoPath = image.absolutePath
         return image
     }
+//    @Throws(IOException::class)
+//    private fun createImageFile(): File {
+//        // Create an image file name
+//        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+//        val imageFileName = "brunch_" + timeStamp + "_"
+//        val path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+//        val image = File.createTempFile(
+//                imageFileName, /* prefix */
+//                ".jpg", /* suffix */
+//                path            /* directory */
+//        )
+//
+//        // Save a file: path for use with ACTION_VIEW intents
+//        val mCurrentPhotoPath = "file:" + image.absolutePath
+//        return image
+//    }
 }
